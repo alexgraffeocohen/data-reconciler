@@ -6,7 +6,9 @@ require 'set'
 class Reconciler
 	@@iptc_data = Hash.new
 	@@stop_words = Set["a", "about", "across", "after", "all", "also", "an", "and", "as", "at", "be", "been", "by", "can", "for", "from", "have", "in", "into", "its", "of", "off", "on", "or", "since", "that", "the", "their", "to", "were", "where", "which", "while", "who", "with"]
-	
+	@@special_characters = ["-", ",", "(", ")"]
+	@@matched_terms = []
+
 	def self.iptc_load
 		CSV.foreach('iptc_sample.csv') do |row|
 			dump = Array.new(row)
@@ -23,8 +25,10 @@ class Reconciler
 			if @@stop_words.include?(word)
 				next
 			end
-			if word.include?('-')
-				word.delete!('-')
+			@@special_characters.each do |char|
+				if word.include?(char)
+					word.delete(char)
+				end
 			end
 			@@split_term_stemmed.push(word.stem)
 		end
@@ -34,21 +38,23 @@ class Reconciler
 	def self.iptc_compare(dbp_term)
 		if @@iptc_data.has_key?(dbp_term)
 			puts "#{dbp_term} matched!"
-			CSV.open('matches2.csv', mode = "a+") { |file| file << [dbp_term] }
+			@@matched_terms.push(dbp_term)
+			CSV.open('matches.csv', mode = "a+") { |file| file << [dbp_term] }
 		else
 			Reconciler.strip_term(dbp_term)
 			dbp_term_stripped = @@term_stripped
 			jarrow = FuzzyStringMatch::JaroWinkler.create( :native )
 			@@iptc_data.each do |iptc_term, iptc_term_stripped|
+				if @@matched_terms.include?(iptc_term)
+					next
+				end
 				distance = jarrow.getDistance(iptc_term_stripped, dbp_term_stripped)
-				if distance > 0.9
-					if dbp_term_stripped.split(' ').all? {|word| iptc_term_stripped.split(' ').include?(word)} == true && iptc_term_stripped.split(' ').all? {|word| dbp_term_stripped.split(' ').include?(word)}
-						puts "IPTC: #{iptc_term} (#{iptc_term_stripped}), DBPEDIA: #{dbp_term} (#{dbp_term_stripped}): #{distance}"
-						CSV.open('matches2.csv', mode = "a+") { |file| file << [dbp_term, iptc_term] }
-					else
-						puts "POSSIBLE MATCH - IPTC: #{iptc_term} (#{iptc_term_stripped}), DBPEDIA: #{dbp_term} (#{dbp_term_stripped}): #{distance}"
-						CSV.open('possible_matches.csv', mode = "a+") { |file| file << [dbp_term, iptc_term] }
-					end
+				if dbp_term_stripped.split(' ').all? {|word| iptc_term_stripped.split(' ').include?(word)} == true && iptc_term_stripped.split(' ').all? {|word| dbp_term_stripped.split(' ').include?(word)}
+					puts "MATCH - DBPEDIA: #{dbp_term} (#{dbp_term_stripped}), IPTC: #{iptc_term} (#{iptc_term_stripped}): #{distance}"
+					CSV.open('matches.csv', mode = "a+") { |file| file << [dbp_term, iptc_term] }
+				elsif distance > 0.95
+					puts "POSSIBLE MATCH - DBPEDIA: #{dbp_term} (#{dbp_term_stripped}), IPTC: #{iptc_term} (#{iptc_term_stripped}): #{distance}"
+					CSV.open('possible_matches.csv', mode = "a+") { |file| file << [dbp_term, iptc_term] }
 				end
 			end
 		end
