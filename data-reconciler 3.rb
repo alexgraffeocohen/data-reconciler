@@ -6,8 +6,9 @@ require 'set'
 class Reconciler
 	@@iptc_data = Hash.new
 	@@stop_words = Set["a", "about", "across", "after", "all", "also", "an", "and", "as", "at", "be", "been", "by", "can", "for", "from", "have", "in", "into", "its", "of", "off", "on", "or", "since", "that", "the", "their", "to", "were", "where", "which", "while", "who", "with"]
-	@@special_characters = ["-", ",", "(", ")"]
 	@@matched_terms = []
+	@@special_characters_delete = ["-", ",", "(", ")", ":", "&", "'"]
+	@@jarrow = FuzzyStringMatch::JaroWinkler.create( :native )
 
 	def self.iptc_load
 		CSV.foreach('iptc_sample.csv') do |row|
@@ -25,10 +26,13 @@ class Reconciler
 			if @@stop_words.include?(word)
 				next
 			end
-			@@special_characters.each do |char|
+			@@special_characters_delete.each do |char|
 				if word.include?(char)
-					word.delete(char)
+					word.delete!(char)
 				end
+			end
+			if word.include?('/')
+				word.gsub!(/\//, " ")
 			end
 			@@split_term_stemmed.push(word.stem)
 		end
@@ -39,21 +43,23 @@ class Reconciler
 		if @@iptc_data.has_key?(dbp_term)
 			puts "#{dbp_term} matched!"
 			@@matched_terms.push(dbp_term)
-			CSV.open('matches.csv', mode = "a+") { |file| file << [dbp_term] }
+			CSV.open('matches.csv', mode = "a+") { |file| file << [dbp_term] }  # open the files at the beginning and close them at the end
 		else
 			Reconciler.strip_term(dbp_term)
 			dbp_term_stripped = @@term_stripped
-			jarrow = FuzzyStringMatch::JaroWinkler.create( :native )
 			@@iptc_data.each do |iptc_term, iptc_term_stripped|
 				if @@matched_terms.include?(iptc_term)
 					next
 				end
-				distance = jarrow.getDistance(iptc_term_stripped, dbp_term_stripped)
-				if dbp_term_stripped.split(' ').all? {|word| iptc_term_stripped.split(' ').include?(word)} == true && iptc_term_stripped.split(' ').all? {|word| dbp_term_stripped.split(' ').include?(word)}
-					puts "MATCH - DBPEDIA: #{dbp_term} (#{dbp_term_stripped}), IPTC: #{iptc_term} (#{iptc_term_stripped}): #{distance}"
+				dbp_term_set = Set.new(dbp_term_stripped.split(' '))
+				iptc_term_set = Set.new(iptc_term_stripped.split(' '))
+				dbp_in_iptc = dbp_term_set.subset? iptc_term_set
+				iptc_in_dbp = iptc_term_set.subset? dbp_term_set
+				if dbp_term_set.length == iptc_term_set.length && dbp_in_iptc && iptc_in_dbp
+					puts "MATCH - DBPEDIA: #{dbp_term} (#{dbp_term_stripped}), IPTC: #{iptc_term} (#{iptc_term_stripped})"
 					CSV.open('matches.csv', mode = "a+") { |file| file << [dbp_term, iptc_term] }
-				elsif distance > 0.95
-					puts "POSSIBLE MATCH - DBPEDIA: #{dbp_term} (#{dbp_term_stripped}), IPTC: #{iptc_term} (#{iptc_term_stripped}): #{distance}"
+				elsif @@jarrow.getDistance(iptc_term_stripped, dbp_term_stripped) > 0.90
+					puts "POSSIBLE MATCH - DBPEDIA: #{dbp_term} (#{dbp_term_stripped}), IPTC: #{iptc_term} (#{iptc_term_stripped})"
 					CSV.open('possible_matches.csv', mode = "a+") { |file| file << [dbp_term, iptc_term] }
 				end
 			end
