@@ -27,7 +27,12 @@ class Reconciler
 	def load_dbp
 		CSV.foreach('dbpedia_sample.csv') do |row|
 			dump = Array.new(row)
-			dbp_term = dump[1].downcase
+			dbp_term = dump[1]
+			if /\sin\s(.*)[A-Z]/ =~ dbp_term or /\sof\s(.*)[A-Z]/ =~ dbp_term or /\sfrom\s(.*)[A-Z]/ =~ dbp_term or /(.*)\sby\s(.*)/ =~ dbp_term
+				puts "skipped #{dbp_term}"
+				next
+			end
+			dbp_term.downcase!
 			@dbp_data[dbp_term] = self.strip_term(dbp_term)
 		end
 	end
@@ -55,9 +60,9 @@ class Reconciler
 	def compare
 		@dbp_data.each do |dbp_term, dbp_term_stripped|
 			if @iptc_data.has_key?(dbp_term)
-				puts "#{dbp_term} matched!"
+				puts "#{dbp_term} matched exactly!"
 				@matched_terms.push(dbp_term)
-				@matches_csv << [dbp_term]  # open the files at the beginning and close them at the end
+				@matches_csv << [dbp_term]
 			else
 				@iptc_data.each do |iptc_term, iptc_term_stripped|
 					if @matched_terms.include?(iptc_term)
@@ -107,10 +112,7 @@ puts "Program Duration: #{duration}"
 # you'll want to add DBPedia url and IPTC url at some point to matches.csv
 
 
-# this will check to see if one of the strings contains words not in the other one
-# dbp_term_stripped.split(' ').all? {|word| iptc_term_stripped.split(' ').include?(word)} == false || iptc_term_stripped.split(' ').all? {|word| dbp_term_stripped.split(' ').include?(word)} == false
 
 
-# put each term in a set and then check if they include stop words, if included then delete
 
 

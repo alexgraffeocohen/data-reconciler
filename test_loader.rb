@@ -54,10 +54,13 @@ end
 
 start_time = Time.now
 Reconciler.dbp_load
-# Reconciler.iptc_load
-end_time = Time.now
-
-duration = end_time - start_time
-puts "Time: #{duration}"
-
 Reconciler.char_test
+end_time = Time.now
+duration_as_hash = end_time - start_time
+puts "AS HASH: #{duration_as_hash}"
+
+start_time = Time.now
+
+
+
+
