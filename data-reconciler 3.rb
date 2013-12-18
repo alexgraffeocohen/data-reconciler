@@ -14,8 +14,7 @@ class Reconciler
 		CSV.foreach('iptc_sample.csv') do |row|
 			dump = Array.new(row)
 			iptc_term = dump[7].downcase
-			Reconciler.strip_term(iptc_term)
-			@@iptc_data[iptc_term] = @@term_stripped
+			@@iptc_data[iptc_term] = Reconciler.strip_term(iptc_term)
 		end
 	end
 
@@ -36,7 +35,7 @@ class Reconciler
 			end
 			@@split_term_stemmed.push(word.stem)
 		end
-		@@term_stripped = @@split_term_stemmed.join(' ')
+		@@split_term_stemmed.join(' ')
 	end
 
 	def self.iptc_compare(dbp_term)
@@ -45,8 +44,7 @@ class Reconciler
 			@@matched_terms.push(dbp_term)
 			CSV.open('matches.csv', mode = "a+") { |file| file << [dbp_term] }  # open the files at the beginning and close them at the end
 		else
-			Reconciler.strip_term(dbp_term)
-			dbp_term_stripped = @@term_stripped
+			dbp_term_stripped = Reconciler.strip_term(dbp_term)
 			@@iptc_data.each do |iptc_term, iptc_term_stripped|
 				if @@matched_terms.include?(iptc_term)
 					next
