@@ -10,14 +10,14 @@ class Reconciler
 		@dbp_data = Hash.new
 		@stop_words = Set["a", "about", "across", "after", "all", "also", "an", "and", "as", "at", "be", "been", "by", "can", "for", "from", "have", "in", "into", "its", "of", "off", "on", "or", "since", "that", "the", "their", "to", "were", "where", "which", "while", "who", "with"]
 		@matched_terms = []
-		@special_characters_delete = ["-", ",", "(", ")", ":", "&", "'", "~"]
+		@special_characters_delete = ["-", ",", "(", ")", ":", "&", "'", "~", '"', "`"]
 		@jarrow = FuzzyStringMatch::JaroWinkler.create( :native )
 		@matches_csv = CSV.open('matches.csv', mode = "a+")
 		@possibles_csv = CSV.open('possible_matches.csv', mode = "a+")
 	end
 
 	def load_iptc
-		CSV.foreach('iptc_sample.csv') do |row|
+		CSV.foreach('iptc.csv') do |row|
 			dump = Array.new(row)
 			iptc_term = dump[7].downcase
 			@iptc_data[iptc_term] = self.strip_term(iptc_term)
@@ -25,11 +25,11 @@ class Reconciler
 	end
 
 	def load_dbp
-		CSV.foreach('dbpedia_sample.csv') do |row|
+		CSV.foreach('dbpedia.txt', {:col_sep => "\t"}) do |row|
 			dump = Array.new(row)
 			dbp_term = dump[1]
 			if /\sin\s(.*)[A-Z]/ =~ dbp_term or /\sof\s(.*)[A-Z]/ =~ dbp_term or /\sfrom\s(.*)[A-Z]/ =~ dbp_term or /(.*)\sby\s(.*)/ =~ dbp_term
-				puts "skipped #{dbp_term}"
+				puts "SKIPPED #{dbp_term}"
 				next
 			end
 			dbp_term.downcase!
@@ -60,7 +60,7 @@ class Reconciler
 	def compare
 		@dbp_data.each do |dbp_term, dbp_term_stripped|
 			if @iptc_data.has_key?(dbp_term)
-				puts "#{dbp_term} matched exactly!"
+				puts "EXACT MATCH - #{dbp_term}"
 				@matched_terms.push(dbp_term)
 				@matches_csv << [dbp_term]
 			else

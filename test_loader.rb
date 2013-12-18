@@ -44,7 +44,7 @@ class Reconciler
 
 	def self.char_test
 		@@dbp_data.each do |dbp_term, dbp_stripped|
-			if dbp_term.include?('~')
+			if dbp_term.include?('*')
 				puts "#{dbp_term}"
 			end
 		end
