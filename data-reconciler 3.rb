@@ -44,16 +44,8 @@ class Reconciler
 			if @stop_words.include?(word)
 				next
 			end
-			word.gsub!(/-|,|\(|\)|:|&|'|~|"|`|/, "")
-
-			# @special_characters_delete.each do |char|
-			# 	if word.include?(char)
-			# 		word.delete!(char)
-			# 	end
-			# end
-			if word.include?('/')
-				word.gsub!(/\//, " ")
-			end
+			word.gsub!(/-|,|\(|\)|:|&|'|~|"|`/, "")
+			word.gsub!(/\//, " ")
 			@split_term_stemmed.push(word.stem)
 		end
 		@split_term_stemmed.join(' ')
