@@ -28,7 +28,7 @@ class Reconciler
 		CSV.foreach('dbpedia_sample.txt', {:col_sep => "\t"}) do |row|
 			dump = Array.new(row)
 			dbp_term = dump[1]
-			if /(\sin\s|\sof\s|\sfrom\s).*[A-Z]|.*\sby\s.*/ =~ dbp_term
+			if /(\sin\s|\sof\s|\sfrom\s|\son\s).*([A-Z]|[0-9])|.*\sby\s.*/ =~ dbp_term
 				puts "SKIPPED #{dbp_term}"
 				next
 			end
@@ -54,13 +54,21 @@ class Reconciler
 	def compare
 		@dbp_data.each do |dbp_term, dbp_term_stripped|
 			if @iptc_data.has_key?(dbp_term)
-				puts "EXACT MATCH - #{dbp_term}"
-				@matched_terms.push(dbp_term)
-				@matches_csv << [dbp_term]
+				puts "EXACT MATCH - #{dbp_term}, #{@iptc_data.key(dbp_term_stripped)}"
+				@matched_terms.push(dbp_term, @iptc_data.key(dbp_term_stripped))
+				@matches_csv << [dbp_term, @iptc_data.key(dbp_term_stripped)]
+			elsif @iptc_data.has_value?(dbp_term_stripped)
+			 	if @jarrow.getDistance(dbp_term, @iptc_data.key(dbp_term_stripped)) > 0.95
+			 		puts "STEMMED MATCH - #{dbp_term}, #{@iptc_data.key(dbp_term_stripped)}"
+			 		@matched_terms.push(dbp_term, @iptc_data.key(dbp_term_stripped))
+			 		@matches_csv << [dbp_term, @iptc_data.key(dbp_term_stripped)]
+			 	else
+			 		@possibles_csv << [dbp_term, @iptc_data.key(dbp_term_stripped)]
+			 	end
 			else
 				@iptc_data.each do |iptc_term, iptc_term_stripped|
 					if @matched_terms.include?(iptc_term)
-						next
+						break	
 					end
 					dbp_term_set = Set.new(dbp_term_stripped.split(' '))
 					iptc_term_set = Set.new(iptc_term_stripped.split(' '))
