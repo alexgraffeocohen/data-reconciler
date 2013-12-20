@@ -12,7 +12,8 @@ class Reconciler
 		@matched_terms = []
 		@special_characters_delete = ["-", ",", "(", ")", ":", "&", "'", "~", '"', "`"]
 		@jarrow = FuzzyStringMatch::JaroWinkler.create( :native )
-		@matches_csv = CSV.open('matches.csv', mode = "a+")
+		@exact_matches_csv = CSV.open('exact_matches.csv', mode = "a+")
+		@stem_matches_csv = CSV.open('stem_matches.csv', mode = "a+")
 		@possibles_csv = CSV.open('possible_matches.csv', mode = "a+")
 	end
 
@@ -56,15 +57,10 @@ class Reconciler
 			if @iptc_data.has_key?(dbp_term)
 				puts "EXACT MATCH - #{dbp_term}, #{@iptc_data.key(dbp_term_stripped)}"
 				@matched_terms.push(dbp_term, @iptc_data.key(dbp_term_stripped))
-				@matches_csv << [dbp_term, @iptc_data.key(dbp_term_stripped)]
-			elsif @iptc_data.has_value?(dbp_term_stripped)
-			 	if @jarrow.getDistance(dbp_term, @iptc_data.key(dbp_term_stripped)) > 0.95
+				@exact_matches_csv << [dbp_term, @iptc_data.key(dbp_term_stripped)]
+			elsif @iptc_data.has_value?(dbp_term_stripped) and @jarrow.getDistance(dbp_term, @iptc_data.key(dbp_term_stripped)) >= 0.90 #matches if stemmed terms are the same and if the original terms are >= 90% similar
 			 		puts "STEMMED MATCH - #{dbp_term}, #{@iptc_data.key(dbp_term_stripped)}"
-			 		@matched_terms.push(dbp_term, @iptc_data.key(dbp_term_stripped))
-			 		@matches_csv << [dbp_term, @iptc_data.key(dbp_term_stripped)]
-			 	else
-			 		@possibles_csv << [dbp_term, @iptc_data.key(dbp_term_stripped)]
-			 	end
+			 		@stem_matches_csv << [dbp_term, @iptc_data.key(dbp_term_stripped)]
 			else
 				@iptc_data.each do |iptc_term, iptc_term_stripped|
 					if @matched_terms.include?(iptc_term)
@@ -74,12 +70,11 @@ class Reconciler
 					iptc_term_set = Set.new(iptc_term_stripped.split(' '))
 					dbp_in_iptc = dbp_term_set.subset? iptc_term_set
 					iptc_in_dbp = iptc_term_set.subset? dbp_term_set
-					distance = @jarrow.getDistance(iptc_term_stripped, dbp_term_stripped)
-					if dbp_term_set.length == iptc_term_set.length && dbp_in_iptc && iptc_in_dbp
-						puts "MATCH - DBPEDIA: #{dbp_term} (#{dbp_term_stripped}), IPTC: #{iptc_term} (#{iptc_term_stripped})"
-						@matches_csv << [dbp_term, iptc_term] 
-					elsif distance > 0.90
-						puts "POSSIBLE MATCH - DBPEDIA: #{dbp_term} (#{dbp_term_stripped}), IPTC: #{iptc_term} (#{iptc_term_stripped}): #{distance}"
+					if dbp_term_set.length == iptc_term_set.length and dbp_in_iptc and iptc_in_dbp and @jarrow.getDistance(dbp_term, @iptc_data.key(dbp_term_stripped)) > 0.95
+						puts "OUT OF ORDER STEM MATCH - DBPEDIA: #{dbp_term} (#{dbp_term_stripped}), IPTC: #{iptc_term} (#{iptc_term_stripped})"
+						@stem_matches_csv << [dbp_term, iptc_term] 
+					elsif @jarrow.getDistance(iptc_term_stripped, dbp_term_stripped) >= 0.90 and @jarrow.getDistance(iptc_term_stripped, dbp_term_stripped) < 1 #matches if stemmed terms are >= 90% similar but not exactly the same, avoiding repeats
+						puts "POSSIBLE MATCH - DBPEDIA: #{dbp_term} (#{dbp_term_stripped}), IPTC: #{iptc_term} (#{iptc_term_stripped})"
 						@possibles_csv << [dbp_term, iptc_term]
 					end
 				end
@@ -88,8 +83,9 @@ class Reconciler
 	end
 
 	def close_files
-		@matches_csv.close
+		@exact_matches_csv.close
 		@possibles_csv.close
+		@stem_matches_csv.close
 	end
 
 end
