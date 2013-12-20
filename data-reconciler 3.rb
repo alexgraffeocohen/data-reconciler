@@ -26,10 +26,17 @@ class Reconciler
 	end
 
 	def load_dbp
+<<<<<<< HEAD
 		CSV.foreach('DBPedia.txt', {:col_sep => "\t"}) do |row|
 			dump = Array.new(row)
 			dbp_term = dump[1]
 			if /(\sin\s|\sof\s|\sfrom\s|\son\s).*([A-Z]|[0-9])|.*\sby\s.*/ =~ dbp_term
+=======
+		CSV.foreach('dbpedia.txt', {:col_sep => "\t"}) do |row|
+			dump = Array.new(row)
+			dbp_term = dump[1]
+			if /\sin\s(.*)[A-Z]/ =~ dbp_term or /\sof\s(.*)[A-Z]/ =~ dbp_term or /\sfrom\s(.*)[A-Z]/ =~ dbp_term or /(.*)\sby\s(.*)/ =~ dbp_term
+>>>>>>> parent of 795f6b3... simplified regex search for filtering dbpedia terms, switched to regex for deleting characters, temp switch on distance calc for testing purposes
 				puts "SKIPPED #{dbp_term}"
 				next
 			end
@@ -45,8 +52,19 @@ class Reconciler
 			if @stop_words.include?(word)
 				next
 			end
+<<<<<<< HEAD
 			word.gsub!(/-|,|\(|\)|:|&|'|~|"|`/, "")
 			word.gsub!(/\//, " ")
+=======
+			@special_characters_delete.each do |char|
+				if word.include?(char)
+					word.delete!(char)
+				end
+			end
+			if word.include?('/')
+				word.gsub!(/\//, " ")
+			end
+>>>>>>> parent of 795f6b3... simplified regex search for filtering dbpedia terms, switched to regex for deleting characters, temp switch on distance calc for testing purposes
 			@split_term_stemmed.push(word.stem)
 		end
 		@split_term_stemmed.join(' ')
@@ -70,12 +88,18 @@ class Reconciler
 					iptc_term_set = Set.new(iptc_term_stripped.split(' '))
 					dbp_in_iptc = dbp_term_set.subset? iptc_term_set
 					iptc_in_dbp = iptc_term_set.subset? dbp_term_set
-					distance = @jarrow.getDistance(iptc_term_stripped, dbp_term_stripped)
 					if dbp_term_set.length == iptc_term_set.length && dbp_in_iptc && iptc_in_dbp
+<<<<<<< HEAD
 						puts "STEMMED MATCH - DBPEDIA: #{dbp_term} (#{dbp_term_stripped}), IPTC: #{iptc_term} (#{iptc_term_stripped})"
 						@stem_matches_csv << [dbp_term, iptc_term] 
 					elsif distance > 0.90
 						puts "POSSIBLE MATCH - DBPEDIA: #{dbp_term} (#{dbp_term_stripped}), IPTC: #{iptc_term} (#{iptc_term_stripped}): #{distance}"
+=======
+						puts "MATCH - DBPEDIA: #{dbp_term} (#{dbp_term_stripped}), IPTC: #{iptc_term} (#{iptc_term_stripped})"
+						@matches_csv << [dbp_term, iptc_term] 
+					elsif @jarrow.getDistance(iptc_term_stripped, dbp_term_stripped) > 0.90
+						puts "POSSIBLE MATCH - DBPEDIA: #{dbp_term} (#{dbp_term_stripped}), IPTC: #{iptc_term} (#{iptc_term_stripped})"
+>>>>>>> parent of 795f6b3... simplified regex search for filtering dbpedia terms, switched to regex for deleting characters, temp switch on distance calc for testing purposes
 						@possibles_csv << [dbp_term, iptc_term]
 					end
 				end

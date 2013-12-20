@@ -706,6 +706,7 @@ snooker
 nature
 education
 mass media
+<<<<<<< HEAD
 poetry
 geology
 government
@@ -1060,3 +1061,5 @@ intergovernmental elections
 shipbuilding
 governance
 privatisation
+=======
+>>>>>>> parent of 795f6b3... simplified regex search for filtering dbpedia terms, switched to regex for deleting characters, temp switch on distance calc for testing purposes
